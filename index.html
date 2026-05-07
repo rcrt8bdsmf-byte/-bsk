@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>記分板 Pro</title>
+<link rel="icon" href="favicon.png" type="image/png">
+<meta name="description" content="這是一款專門為籃球比賽所設計的線上網站，無需任何花費就可紀錄比賽中球員的各項數據以及命中率，操作介面簡單明瞭且非常實用，並且提供匯出方便查看。">
+<title>計分板 Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -28,6 +30,13 @@ header{background:linear-gradient(135deg,var(--red),#c0392b);padding:12px;text-a
 
 .card{background:var(--mid);border:1px solid var(--bdr);border-radius:12px;padding:15px;margin-bottom:15px;}
 input, textarea{width:100%;padding:12px;background:rgba(0,0,0,0.2);border:1px solid var(--bdr);border-radius:8px;color:white;margin-bottom:12px;font-size:16px;}
+
+/* 匯入系統樣式更新 */
+.import-flex { display: flex; gap: 10px; margin-bottom: 10px; }
+.import-flex input:nth-child(1) { flex: 1; } /* 號碼欄位 */
+.import-flex input:nth-child(2) { flex: 2; } /* 姓名欄位 */
+.player-list-preview { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 0.9rem; }
+.player-item { display: inline-block; background: var(--panel); padding: 4px 10px; border-radius: 4px; margin: 4px; border: 1px solid var(--bdr); }
 
 /* 計分板 */
 .scoreboard{display:grid;grid-template-columns:1fr 0.3fr 1fr;align-items:center;text-align:center;background:var(--panel);border-radius:15px;padding:15px;}
@@ -70,7 +79,7 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
 </head>
 <body>
 
-<header><h1>🏀 記分板</h1></header>
+<header><h1>🏀 計分板</h1></header>
 
 <div class="tabs">
     <div class="tab active" onclick="go('setup')">設定</div>
@@ -78,7 +87,6 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
     <div class="tab" onclick="go('history')">數據查看</div>
 </div>
 
-<!-- PANEL: SETUP -->
 <div class="panel active" id="p-setup">
     <div class="card">
         <div style="font-size:0.8rem; color:var(--gold); margin-bottom:8px;">比賽基本資訊</div>
@@ -86,18 +94,25 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
         <input type="text" id="g-opp" placeholder="對手名稱">
         <input type="date" id="g-date">
     </div>
+    
     <div class="card">
-        <div style="font-size:0.8rem; color:var(--gold); margin-bottom:8px;">名單匯入 (格式：號碼 姓名)</div>
-        <textarea id="a-names" placeholder="例如：
-30 庫里
-11 湯普森
-23 格林" style="height:120px;"></textarea>
-        <button class="btn" style="width:100%; background:var(--gold); color:var(--bg); border:none; border-radius:8px; padding:12px; font-weight:bold;" onclick="importPlayers()">匯入名單</button>
+        <div style="font-size:0.8rem; color:var(--gold); margin-bottom:8px;">球員名單匯入</div>
+        <div class="import-flex">
+            <input type="text" id="p-num" placeholder="號碼 (如: 30)">
+            <input type="text" id="p-name" placeholder="球員姓名">
+        </div>
+        <button class="btn" style="width:100%; background:var(--gold); color:var(--bg); border:none; border-radius:8px; padding:12px; font-weight:bold; margin-bottom:10px;" onclick="addSinglePlayer()">+ 新增球員</button>
+        
+        <div id="player-preview-container" style="display:none;">
+            <div style="font-size:0.75rem; color:var(--muted); margin-bottom:5px;">已加入名單：</div>
+            <div id="player-list-preview" class="player-list-preview"></div>
+            <button style="background:none; border:none; color:var(--red); font-size:0.75rem; cursor:pointer; margin-top:5px;" onclick="clearPlayers()">清空名單</button>
+        </div>
     </div>
+    
     <button class="btn" style="width:100%; background:var(--red); color:white; border:none; border-radius:8px; padding:15px; font-size:1.1rem; font-weight:bold;" onclick="startGame()">▶ 開始比賽</button>
 </div>
 
-<!-- PANEL: RECORD -->
 <div class="panel" id="p-record">
     <div class="scoreboard card">
         <div><small id="txt-us">我方</small><span class="score-num" id="sb-us">0</span></div>
@@ -116,7 +131,6 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
     <button class="btn" style="width:100%; background:var(--gold); color:var(--bg); margin-top:25px; padding:15px; border:none; border-radius:8px; font-weight:bold;" onclick="saveGame()">💾 儲存本場比賽數據</button>
 </div>
 
-<!-- PANEL: HISTORY -->
 <div class="panel" id="p-history">
     <div class="card">
         <div id="hist-list"></div>
@@ -141,7 +155,6 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
     </div>
 </div>
 
-<!-- 修正彈窗 (防呆機制) -->
 <div class="modal" id="editModal">
     <div class="modal-content">
         <h3 id="editPlayerName" style="color:var(--gold); margin-bottom:15px;">修正球員數據</h3>
@@ -170,25 +183,57 @@ th{background:rgba(255,255,255,0.05); color:var(--muted); font-size:0.75rem;}
 
 <script>
 let players = [], stats = {}, score = {us:0, them:0}, gInfo = {};
-let history = JSON.parse(localStorage.getItem('basket_pro_v5') || '[]');
+let historyData = JSON.parse(localStorage.getItem('basket_pro_v5') || '[]');
 let currentEditName = "";
 
 function go(id){
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelector(`[onclick="go('${id}')"]`).classList.add('active');
+    const tab = document.querySelector(`[onclick="go('${id}')"]`);
+    if(tab) tab.classList.add('active');
     document.getElementById('p-'+id).classList.add('active');
     if(id==='history') drawHistoryList();
 }
 
-function importPlayers(){
-    const input = document.getElementById('a-names').value.trim();
-    if(!input) return alert("請輸入名單");
-    players = input.split('\n').filter(l => l.trim()).map(line => {
-        const parts = line.trim().split(/\s+/);
-        return { num: parts[0] || '?', name: parts[1] || '未知' };
-    });
-    showToast(`成功匯入 ${players.length} 名球員`);
+// 逐一匯入球員的功能
+function addSinglePlayer(){
+    const numInput = document.getElementById('p-num');
+    const nameInput = document.getElementById('p-name');
+    const num = numInput.value.trim();
+    const name = nameInput.value.trim();
+    
+    if(!num || !name) return alert("請同時輸入號碼與姓名");
+    
+    // 檢查姓名是否重複
+    if(players.some(p => p.name === name)) return alert("球員姓名重複了");
+
+    players.push({ num: num, name: name });
+    
+    // 清空輸入框
+    numInput.value = "";
+    nameInput.value = "";
+    numInput.focus();
+    
+    updatePlayerPreview();
+    showToast(`已新增 #${num} ${name}`);
+}
+
+function updatePlayerPreview(){
+    const container = document.getElementById('player-preview-container');
+    const list = document.getElementById('player-list-preview');
+    if(players.length > 0){
+        container.style.display = 'block';
+        list.innerHTML = players.map(p => `<span class="player-item">#${p.num} ${p.name}</span>`).join('');
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function clearPlayers(){
+    if(confirm("確定要清空已加入的名單嗎？")){
+        players = [];
+        updatePlayerPreview();
+    }
 }
 
 function startGame(){
@@ -199,6 +244,7 @@ function startGame(){
         date: document.getElementById('g-date').value || new Date().toISOString().slice(0,10)
     };
     score = {us:0, them:0};
+    stats = {}; // 重置數據
     players.forEach(p => {
         stats[p.name] = { pts:0, f3m:0, f3a:0, f2m:0, f2a:0, ftm:0, fta:0, ast:0, blk:0, stl:0, to:0, foul:0, num: p.num };
     });
@@ -304,16 +350,16 @@ function closeModal(){ document.getElementById('editModal').style.display = 'non
 
 function saveGame(){
     if(!confirm("確定要結束並儲存比賽數據嗎？")) return;
-    history.unshift({ info:{...gInfo}, score:{...score}, players:[...players], stats:JSON.parse(JSON.stringify(stats)) });
-    localStorage.setItem('basket_pro_v5', JSON.stringify(history));
+    historyData.unshift({ info:{...gInfo}, score:{...score}, players:[...players], stats:JSON.parse(JSON.stringify(stats)) });
+    localStorage.setItem('basket_pro_v5', JSON.stringify(historyData));
     showToast("比賽數據已存檔 ✓");
     go('history');
 }
 
 function drawHistoryList(){
     const container = document.getElementById('hist-list');
-    if(history.length === 0){ container.innerHTML = "<p>尚無歷史紀錄</p>"; return; }
-    container.innerHTML = history.map((g, i) => `
+    if(historyData.length === 0){ container.innerHTML = "<p>尚無歷史紀錄</p>"; return; }
+    container.innerHTML = historyData.map((g, i) => `
         <div class="card" onclick="viewDetail(${i})" style="cursor:pointer; border-left:6px solid var(--red); display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <small style="color:var(--muted)">${g.info.date}</small>
@@ -325,7 +371,7 @@ function drawHistoryList(){
 }
 
 function viewDetail(idx){
-    const g = history[idx];
+    const g = historyData[idx];
     window.currentHistoryIdx = idx;
     document.getElementById('hist-detail').style.display = 'block';
     document.getElementById('detail-match-name').innerText = `${g.info.team} VS ${g.info.opp}`;
@@ -340,7 +386,7 @@ function viewDetail(idx){
 }
 
 function buildCanvas(){
-    const g = history[window.currentHistoryIdx];
+    const g = historyData[window.currentHistoryIdx];
     document.getElementById('exp-title').innerText = `${g.info.team} VS ${g.info.opp} 賽後數據`;
     document.getElementById('exp-meta').innerText = `${g.info.date} | 比分 ${g.score.us}:${g.score.them}`;
     let html = '';
